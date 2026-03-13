@@ -31,6 +31,6 @@ public class Nodo {
     
     @Override
     public String toString(){
-        return nombre + " - " + artista + "(" + duracion + ")";
+        return nombre + " - " + artista + " (" + duracion + ")";
     }
 }

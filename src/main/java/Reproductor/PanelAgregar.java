@@ -6,11 +6,11 @@ package Reproductor;
 
 import javax.swing.*;
 import java.awt.*;
-import javax.swing.border.*;
+
 /**
- *
  * @author Fabio Sierra
  */
+
 public class PanelAgregar extends JPanel {
     JTextField nombreField;
     JTextField artistaField;
@@ -23,7 +23,6 @@ public class PanelAgregar extends JPanel {
     String rutaImagen;
 
     public PanelAgregar(Runnable onAgregar) {
-        // Aumentamos a 7 filas para incluir la duración
         setLayout(new GridLayout(7, 2, 10, 10));
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
@@ -41,15 +40,13 @@ public class PanelAgregar extends JPanel {
 
         add(new JLabel("Duración (Auto):"));
         duracionField = new JTextField("00:00");
-        duracionField.setEditable(false); // El usuario no la escribe, se calcula sola
+        duracionField.setEditable(false);
         duracionField.setBackground(new Color(230, 230, 230)); 
         add(duracionField);
 
         add(new JLabel("Archivo MP3:"));
         audioButton = new JButton("Seleccionar Audio");
         add(audioButton);
-        
-        // El listener del audioButton se maneja en MainApp para usar calcularDuracion()
 
         add(new JLabel("Carátula:"));
         imagenButton = new JButton("Seleccionar Imagen");
@@ -62,7 +59,7 @@ public class PanelAgregar extends JPanel {
             }
         });
 
-        add(new JLabel("")); // Espacio vacío
+        add(new JLabel(""));
         agregarButton = new JButton("Guardar Canción");
         add(agregarButton);
     }
