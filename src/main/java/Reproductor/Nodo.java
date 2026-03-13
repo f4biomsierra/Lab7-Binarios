@@ -9,16 +9,26 @@ package Reproductor;
  * @author Fabio Sierra
  */
 public class Nodo {
-    Cancion cancion;
+    int codigo;
+    String nombre;
+    String artista;
+    String genero;
+    String rutaAudio;
+    String rutaImagen;
     Nodo next;
     
-    public Nodo(Cancion can){
-        this.cancion = can;
-        this.next = null;
+    public Nodo(int codigo, String nombre, String artista, String genero, String rutaAudio, String rutaImagen){
+        this.codigo = codigo;
+        this.nombre = nombre;
+        this.artista = artista;
+        this.genero = genero;
+        this.rutaAudio = rutaAudio;
+        this.rutaImagen = rutaImagen;
+        next = null;
     }
     
     @Override
     public String toString(){
-        return cancion.toString();
+        return nombre + " - " + artista;
     }
 }

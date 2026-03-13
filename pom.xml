@@ -10,4 +10,14 @@
         <maven.compiler.release>25</maven.compiler.release>
         <exec.mainClass>com.mycompany.lab7_binarios.Lab7_Binarios</exec.mainClass>
     </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>javazoom</groupId>
+            <artifactId>jlayer</artifactId>
+            <version>1.0.1</version>
+            <type>jar</type>
+        </dependency>
+    </dependencies>
+
 </project>
