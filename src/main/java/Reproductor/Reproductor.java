@@ -4,75 +4,73 @@
  */
 package Reproductor;
 
-import javazoom.jl.player.Player;
+import javazoom.jl.player.advanced.AdvancedPlayer;
+import javazoom.jl.player.advanced.PlaybackEvent;
+import javazoom.jl.player.advanced.PlaybackListener;
 import java.io.*;
+
 /**
- *
  * @author Fabio Sierra
  */
+
 public class Reproductor {
-    private Player reproductorMp3;
-    private FileInputStream entrada;
-    private Thread hiloMusica;
-    
+    private AdvancedPlayer player;
     private String rutaActual;
-    private long totalBytes;
-    private long bytesRestantes;
-    private long posicionPausa;
+    private int pausaMilisegundo = 0;
     private boolean estaPausado = false;
+    private Thread hiloReproduccion;
 
     public void play(String ruta) {
-        if (!ruta.equals(rutaActual)) {
-            stop();
-            rutaActual = ruta;
-            posicionPausa = 0;
-        }
-        
-        if (reproductorMp3 != null && !estaPausado) return;
-
-        hiloMusica = new Thread(() -> {
-            try {
-                entrada = new FileInputStream(rutaActual);
-                totalBytes = entrada.available();
-                
-                if (estaPausado && posicionPausa > 0) {
-                    entrada.skip(totalBytes - posicionPausa);
-                }
-
-                reproductorMp3 = new Player(entrada);
-                estaPausado = false;
-                reproductorMp3.play();
-                
-                if (reproductorMp3.isComplete()) {
-                    posicionPausa = 0;
-                    estaPausado = false;
-                }
-                
-            } catch (Exception e) {
-                System.out.println("Error: " + e.getMessage());
-            }
-        });
-        hiloMusica.start();
+        stop();
+        this.rutaActual = ruta;
+        this.pausaMilisegundo = 0;
+        this.estaPausado = false;
+        comenzar(0);
     }
 
     public void pause() {
-        if (reproductorMp3 != null) {
-            try {
-                posicionPausa = entrada.available();
-                estaPausado = true;
-                reproductorMp3.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        if (player != null && !estaPausado) {
+            stop();
+            estaPausado = true;
+        }
+    }
+
+    public void resume() {
+        if (estaPausado && rutaActual != null) {
+            estaPausado = false;
+            comenzar(pausaMilisegundo);
         }
     }
 
     public void stop() {
-        if (reproductorMp3 != null) {
-            reproductorMp3.close();
-            reproductorMp3 = null;
+        if (player != null) {
+            player.close();
+            player = null;
         }
-        posicionPausa = 0;
-        estaPausado = false;
+        if (hiloReproduccion != null) {
+            hiloReproduccion.interrupt();
+        }
+    }
+
+    private void comenzar(int desdeMilisegundo) {
+        hiloReproduccion = new Thread(() -> {
+            try {
+                FileInputStream fis = new FileInputStream(rutaActual);
+                BufferedInputStream bis = new BufferedInputStream(fis);
+                player = new AdvancedPlayer(bis);
+
+                player.setPlayBackListener(new PlaybackListener() {
+                    @Override
+                    public void playbackFinished(PlaybackEvent evt) {
+                        pausaMilisegundo += evt.getFrame();
+                    }
+                });
+
+                player.play(desdeMilisegundo, Integer.MAX_VALUE);
+            } catch (Exception e) {
+                System.out.println("Error al reproducir: " + e.getMessage());
+            }
+        });
+        hiloReproduccion.start();
     }
 }
