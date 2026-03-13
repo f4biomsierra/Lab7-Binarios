@@ -5,46 +5,46 @@
 package Reproductor;
 
 import java.io.*;
+import java.util.*;
 /**
  *
  * @author Fabio Sierra
  */
 public class PlaylistArchivo {
+
     private String archivo = "playlist.dat";
-    
-    public void guardar(ListaCanciones lista){
-        try(RandomAccessFile rafObj = new RandomAccessFile(archivo, "rw")){
+
+    public void guardar(ArrayList<Cancion> lista) {
+        try (RandomAccessFile rafObj = new RandomAccessFile(archivo, "rw")) {
             rafObj.setLength(0);
-            Nodo tmp = lista.getSong(0);
-            int indice=0;
-            while(tmp!=null){
-                rafObj.writeInt(tmp.codigo);
-                rafObj.writeUTF(tmp.nombre);
-                rafObj.writeUTF(tmp.artista);
-                rafObj.writeUTF(tmp.genero);
-                rafObj.writeUTF(tmp.rutaAudio);
-                rafObj.writeUTF(tmp.rutaImagen);
-                
-                tmp=tmp.next;
-                indice++;
+            for (Cancion can : lista) {
+                rafObj.writeInt(can.codigo);
+                rafObj.writeUTF(can.nombre);
+                rafObj.writeUTF(can.artista);
+                rafObj.writeUTF(can.genero);
+                rafObj.writeUTF(can.rutaAudio);
+                rafObj.writeUTF(can.rutaImagen == null ? "" : can.rutaImagen);
+                rafObj.writeUTF(can.duracion);
             }
-        } catch(IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    
-    public ListaCanciones cargar(){
-        ListaCanciones lista = new ListaCanciones();
-        try(RandomAccessFile rafObj = new RandomAccessFile(archivo, "r")){
-            while(rafObj.getFilePointer() < rafObj.length()){
+
+    public ArrayList<Cancion> cargar() {
+        ArrayList<Cancion> lista = new ArrayList<>();
+        try (RandomAccessFile rafObj = new RandomAccessFile(archivo, "r")) {
+            while (rafObj.getFilePointer() < rafObj.length()) {
                 int codigo = rafObj.readInt();
                 String nombre = rafObj.readUTF();
                 String artista = rafObj.readUTF();
                 String genero = rafObj.readUTF();
                 String rutaAudio = rafObj.readUTF();
                 String rutaImagen = rafObj.readUTF();
+                String duracion = rafObj.readUTF();
+                lista.add(new Cancion(codigo, nombre, artista, genero, rutaAudio, rutaImagen, duracion));
             }
-        } catch(IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return lista;

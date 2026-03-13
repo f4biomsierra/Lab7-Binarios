@@ -8,7 +8,7 @@ package Reproductor;
  *
  * @author Fabio Sierra
  */
-public class Nodo {
+public class Cancion {
     int codigo;
     String nombre;
     String artista;
@@ -16,9 +16,8 @@ public class Nodo {
     String rutaAudio;
     String rutaImagen;
     String duracion;
-    Nodo next;
     
-    public Nodo(int codigo, String nombre, String artista, String genero, String rutaAudio, String rutaImagen, String duracion){
+    public Cancion(int codigo, String nombre, String artista, String genero, String rutaAudio, String rutaImagen, String duracion){
         this.codigo = codigo;
         this.nombre = nombre;
         this.artista = artista;
@@ -26,7 +25,6 @@ public class Nodo {
         this.rutaAudio = rutaAudio;
         this.rutaImagen = rutaImagen;
         this.duracion = duracion;
-        next = null;
     }
     
     @Override

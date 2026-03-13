@@ -8,69 +8,79 @@ import javazoom.jl.player.advanced.AdvancedPlayer;
 import javazoom.jl.player.advanced.PlaybackEvent;
 import javazoom.jl.player.advanced.PlaybackListener;
 import java.io.*;
-
-/**
- * @author Fabio Sierra
- */
+import javazoom.jl.decoder.Bitstream;
+import javazoom.jl.decoder.Header;
 
 public class Reproductor {
     private AdvancedPlayer player;
     private String rutaActual;
-    private int pausaMilisegundo = 0;
-    private boolean estaPausado = false;
-    private Thread hiloReproduccion;
+    private volatile boolean estaPausado = false;
+    private Thread hilo;
+
+    private long msTranscurridos = 0;
+    private long msInicio = 0;
 
     public void play(String ruta) {
-        stop();
-        this.rutaActual = ruta;
-        this.pausaMilisegundo = 0;
-        this.estaPausado = false;
-        comenzar(0);
+        if (rutaActual == null || !rutaActual.equals(ruta)) {
+            stop();
+            rutaActual = ruta;
+        }
+        if (player != null && !estaPausado) {
+            return;
+        }
+        estaPausado = false;
+        reproducir(msTranscurridos);
     }
 
     public void pause() {
         if (player != null && !estaPausado) {
-            stop();
+            msTranscurridos += System.currentTimeMillis() - msInicio;
             estaPausado = true;
-        }
-    }
-
-    public void resume() {
-        if (estaPausado && rutaActual != null) {
-            estaPausado = false;
-            comenzar(pausaMilisegundo);
+            player.close();
         }
     }
 
     public void stop() {
+        estaPausado = false;
+        msTranscurridos = 0;
+        msInicio = 0;
+        rutaActual = null;
         if (player != null) {
             player.close();
             player = null;
         }
-        if (hiloReproduccion != null) {
-            hiloReproduccion.interrupt();
-        }
     }
 
-    private void comenzar(int desdeMilisegundo) {
-        hiloReproduccion = new Thread(() -> {
+    private void reproducir(long startMs) {
+        hilo = new Thread(() -> {
             try {
                 FileInputStream fis = new FileInputStream(rutaActual);
                 BufferedInputStream bis = new BufferedInputStream(fis);
+
+                if (startMs > 0) {
+                    Bitstream bitstream = new Bitstream(new FileInputStream(rutaActual));
+                    Header header = bitstream.readFrame();
+                    int bitrateKbps = header.bitrate() / 1000;
+                    bitstream.close();
+
+                    long bytesPerMs = (bitrateKbps * 1000) / 8 / 1000;
+                    long bytesToSkip = startMs * bytesPerMs;
+                    bis.skip(bytesToSkip);
+                }
+
                 player = new AdvancedPlayer(bis);
+                msInicio = System.currentTimeMillis();
+                player.play();
 
-                player.setPlayBackListener(new PlaybackListener() {
-                    @Override
-                    public void playbackFinished(PlaybackEvent evt) {
-                        pausaMilisegundo += evt.getFrame();
-                    }
-                });
+                if (!estaPausado) {
+                    msTranscurridos = 0;
+                }
 
-                player.play(desdeMilisegundo, Integer.MAX_VALUE);
             } catch (Exception e) {
-                System.out.println("Error al reproducir: " + e.getMessage());
+                System.err.println("Error en la reproducción: " + e.getMessage());
             }
         });
-        hiloReproduccion.start();
+        hilo.setPriority(Thread.MAX_PRIORITY);
+        hilo.start();
     }
 }
