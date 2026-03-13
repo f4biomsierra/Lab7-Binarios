@@ -15,6 +15,7 @@ public class PanelAgregar extends JPanel {
     JTextField nombreField;
     JTextField artistaField;
     JTextField generoField;
+    JTextField duracionField;
     JButton audioButton;
     JButton imagenButton;
     JButton agregarButton;
@@ -22,35 +23,47 @@ public class PanelAgregar extends JPanel {
     String rutaImagen;
 
     public PanelAgregar(Runnable onAgregar) {
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBorder(new EmptyBorder(10, 10, 10, 10));
-        setPreferredSize(new Dimension(250, 0));
+        // Aumentamos a 7 filas para incluir la duración
+        setLayout(new GridLayout(7, 2, 10, 10));
+        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Método auxiliar para añadir campos con etiqueta arriba
-        crearCampoTexto("Nombre de Canción:", nombreField = new JTextField());
-        crearCampoTexto("Artista:", artistaField = new JTextField());
-        crearCampoTexto("Género:", generoField = new JTextField());
+        add(new JLabel("Nombre:"));
+        nombreField = new JTextField();
+        add(nombreField);
 
-        add(Box.createVerticalStrut(10));
-        
-        audioButton = new JButton("📁 Seleccionar Audio");
-        audioButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        configurarBotonArchivo(audioButton, true);
+        add(new JLabel("Artista:"));
+        artistaField = new JTextField();
+        add(artistaField);
+
+        add(new JLabel("Género:"));
+        generoField = new JTextField();
+        add(generoField);
+
+        add(new JLabel("Duración (Auto):"));
+        duracionField = new JTextField("00:00");
+        duracionField.setEditable(false); // El usuario no la escribe, se calcula sola
+        duracionField.setBackground(new Color(230, 230, 230)); 
+        add(duracionField);
+
+        add(new JLabel("Archivo MP3:"));
+        audioButton = new JButton("Seleccionar Audio");
         add(audioButton);
+        
+        // El listener del audioButton se maneja en MainApp para usar calcularDuracion()
 
-        add(Box.createVerticalStrut(5));
-
-        imagenButton = new JButton("🖼 Seleccionar Imagen");
-        imagenButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        configurarBotonArchivo(imagenButton, false);
+        add(new JLabel("Carátula:"));
+        imagenButton = new JButton("Seleccionar Imagen");
         add(imagenButton);
+        imagenButton.addActionListener(e -> {
+            JFileChooser fc = new JFileChooser();
+            if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
+                rutaImagen = fc.getSelectedFile().getAbsolutePath();
+                imagenButton.setText(fc.getSelectedFile().getName());
+            }
+        });
 
-        add(Box.createVerticalStrut(20));
-
-        agregarButton = new JButton("✨ Agregar a la Lista");
-        agregarButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        agregarButton.setBackground(new Color(70, 130, 180));
-        agregarButton.setForeground(Color.BLACK);
+        add(new JLabel("")); // Espacio vacío
+        agregarButton = new JButton("Guardar Canción");
         add(agregarButton);
     }
 
@@ -82,11 +95,14 @@ public class PanelAgregar extends JPanel {
         nombreField.setText("");
         artistaField.setText("");
         generoField.setText("");
-        audioButton.setText("📁 Seleccionar Audio");
-        imagenButton.setText("🖼 Seleccionar Imagen");
+        duracionField.setText("00:00");
+        audioButton.setText("Seleccionar Audio");
+        imagenButton.setText("Seleccionar Imagen");
         rutaAudio = null;
         rutaImagen = null;
     }
+    
+    public void setRutaAudio(String ruta) { this.rutaAudio = ruta; }
 
     public String getNombre(){
         return nombreField.getText();

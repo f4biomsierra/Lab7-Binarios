@@ -7,6 +7,13 @@ package Reproductor;
 import javax.swing.*;
 import java.awt.*;
 import javax.swing.border.EmptyBorder;
+import java.io.*;
+import javazoom.jl.decoder.Bitstream;
+import javazoom.jl.decoder.Header;
+/**
+ * @author Fabio Sierra
+ */
+
 
 /**
  * @author Fabio Sierra
@@ -16,6 +23,7 @@ public class MainApp extends JFrame {
     private DefaultListModel<Nodo> modeloLista;
     private JList<Nodo> jlist;
     private JLabel imagenLabel;
+    private JLabel duracionLabel; 
     private Reproductor reproductor;
     private PlaylistArchivo archivo;
 
@@ -32,7 +40,7 @@ public class MainApp extends JFrame {
         reproductor = new Reproductor();
 
         setTitle("Reproductor de Música");
-        setSize(1000, 550);
+        setSize(1000, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(15, 15));
@@ -40,142 +48,157 @@ public class MainApp extends JFrame {
         // --- OESTE: LISTA ---
         modeloLista = new DefaultListModel<>();
         jlist = new JList<>(modeloLista);
-        jlist.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        jlist.setBackground(new Color(245, 245, 245));
-        
         for (int contador = 0; contador < listaCanciones.size(); contador++) {
             modeloLista.addElement(listaCanciones.getSong(contador));
         }
 
         JScrollPane scrollLista = new JScrollPane(jlist);
-        scrollLista.setPreferredSize(new Dimension(250, 0));
+        scrollLista.setPreferredSize(new Dimension(280, 0));
         scrollLista.setBorder(BorderFactory.createTitledBorder("Tu Playlist"));
         add(scrollLista, BorderLayout.WEST);
 
-        // --- CENTRO: IMAGEN ---
+        // --- CENTRO: VISOR ---
+        JPanel panelVisualizador = new JPanel(new BorderLayout());
+        panelVisualizador.setBackground(Color.DARK_GRAY);
+        
         imagenLabel = new JLabel("Seleccione una canción", SwingConstants.CENTER);
-        imagenLabel.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
-        imagenLabel.setOpaque(true);
-        imagenLabel.setBackground(Color.DARK_GRAY);
-        add(imagenLabel, BorderLayout.CENTER);
+        imagenLabel.setForeground(Color.LIGHT_GRAY);
+        
+        duracionLabel = new JLabel("Duración: --:--", SwingConstants.CENTER);
+        duracionLabel.setForeground(Color.WHITE);
+        duracionLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        duracionLabel.setBorder(new EmptyBorder(10, 0, 10, 0));
+
+        panelVisualizador.add(imagenLabel, BorderLayout.CENTER);
+        panelVisualizador.add(duracionLabel, BorderLayout.SOUTH);
+        add(panelVisualizador, BorderLayout.CENTER);
 
         // --- SUR: BOTONES ---
-        JPanel panelControles = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
-        panelControles.setBorder(new EmptyBorder(10, 10, 10, 10));
-        
-        JButton play = new JButton("▶ Play");
-        JButton pause = new JButton("⏸ Pause");
-        JButton stop = new JButton("⏹ Stop");
-        JButton remove = new JButton("🗑 Remove");
-        JButton addBtn = new JButton("➕ Add"); // Cambié el nombre para evitar conflictos
+        JPanel panelControles = new JPanel(new FlowLayout(FlowLayout.CENTER, 25, 15));
+        JButton playBtn = new JButton("▶ Play");
+        JButton pauseBtn = new JButton("⏸ Pause");
+        JButton stopBtn = new JButton("⏹ Stop");
+        JButton removeBtn = new JButton("Remove");
+        JButton addBtn = new JButton("Add");
 
-        panelControles.add(play);
-        panelControles.add(pause);
-        panelControles.add(stop);
-        panelControles.add(remove);
-        panelControles.add(addBtn); // ¡IMPORTANTE! Agregarlo al panel
-        
+        panelControles.add(playBtn);
+        panelControles.add(pauseBtn);
+        panelControles.add(stopBtn);
+        panelControles.add(removeBtn);
+        panelControles.add(addBtn);
         add(panelControles, BorderLayout.SOUTH);
 
         // --- EVENTOS ---
-        play.addActionListener(evento -> {
-            Nodo nodoSeleccionado = jlist.getSelectedValue();
-            if (nodoSeleccionado != null) {
-                reproductor.play(nodoSeleccionado.rutaAudio);
-                mostrarImagen();
-            } else {
-                JOptionPane.showMessageDialog(this, "Selecciona una canción de la lista primero.");
+        playBtn.addActionListener(e -> {
+            Nodo seleccionado = jlist.getSelectedValue();
+            if (seleccionado != null) {
+                reproductor.play(seleccionado.rutaAudio);
+                actualizarInterfaz();
             }
         });
 
-        pause.addActionListener(evento -> reproductor.pause());
-        stop.addActionListener(evento -> reproductor.stop());
-        remove.addActionListener(evento -> eliminarCancion());
+        pauseBtn.addActionListener(e -> reproductor.pause());
+        stopBtn.addActionListener(e -> {
+            reproductor.stop();
+            duracionLabel.setText("Duración: " + (jlist.getSelectedValue() != null ? jlist.getSelectedValue().duracion : "--:--"));
+        });
         
-        // Aquí conectamos el botón con la ventana emergente
-        addBtn.addActionListener(evento -> mostrarVentanaAgregar());
-        
-        jlist.addListSelectionListener(evento -> {
-            if (!evento.getValueIsAdjusting()) mostrarImagen();
+        removeBtn.addActionListener(e -> eliminarCancion());
+        addBtn.addActionListener(e -> mostrarVentanaAgregar());
+
+        jlist.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) actualizarInterfaz();
         });
 
         setVisible(true);
     }
 
-    private void mostrarVentanaAgregar() {
-        JDialog ventanaEmergente = new JDialog(this, "Agregar Nueva Canción", true);
-        ventanaEmergente.setLayout(new BorderLayout());
+    // MÉTODO CLAVE: Calcula la duración usando Bitstream de JLayer
+    public String calcularDuracion(String ruta) {
+        try (FileInputStream fis = new FileInputStream(new File(ruta))) {
+            Bitstream bitstream = new Bitstream(fis);
+            Header encabezado = bitstream.readFrame();
+            long milisegundos = (long) encabezado.total_ms((int) new File(ruta).length());
+            
+            long segundosTotales = milisegundos / 1000;
+            long min = segundosTotales / 60;
+            long seg = segundosTotales % 60;
+            
+            bitstream.close();
+            return String.format("%02d:%02d", min, seg);
+        } catch (Exception e) {
+            return "00:00";
+        }
+    }
 
-        // Importante: Pasar null o un Runnable vacío si no lo usas en el constructor
-        PanelAgregar panel = new PanelAgregar(() -> {
+    private void mostrarVentanaAgregar() {
+        JDialog ventana = new JDialog(this, "Nueva Canción", true);
+        PanelAgregar panel = new PanelAgregar(null); 
+        
+        // Modificamos el comportamiento del botón de audio del panel desde aquí
+        panel.audioButton.addActionListener(e -> {
+            JFileChooser fc = new JFileChooser();
+            if (fc.showOpenDialog(panel) == JFileChooser.APPROVE_OPTION) {
+                String ruta = fc.getSelectedFile().getAbsolutePath();
+                panel.setRutaAudio(ruta);
+                panel.audioButton.setText(fc.getSelectedFile().getName());
+                
+                // Cálculo automático al seleccionar
+                String dur = calcularDuracion(ruta);
+                panel.duracionField.setText(dur);
+            }
         });
 
-        // Le damos un tamaño preferido para que el diálogo sepa cuánto espacio ocupar
-        panel.setPreferredSize(new Dimension(350, 400));
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        // Configuramos el botón de agregar que está DENTRO del panel
         panel.agregarButton.addActionListener(e -> {
             agregarCancion(panel);
-            ventanaEmergente.dispose(); // Cerrar al terminar
+            ventana.dispose();
         });
 
-        ventanaEmergente.add(panel, BorderLayout.CENTER);
-
-        ventanaEmergente.pack(); // Ajusta al tamaño del panel
-        ventanaEmergente.setResizable(false); // Evita que el usuario la deforme
-        ventanaEmergente.setLocationRelativeTo(this); // Centrar sobre la app principal
-        ventanaEmergente.setVisible(true);
+        ventana.add(panel);
+        ventana.pack();
+        ventana.setLocationRelativeTo(this);
+        ventana.setVisible(true);
     }
 
     private void agregarCancion(PanelAgregar panel) {
-        try {
-            int codigo = listaCanciones.size() + 1;
-            String nombre = panel.getNombre();
-            String artista = panel.getArtista();
-            String genero = panel.getGenero();
-            String rutaAudio = panel.getRutaAudio();
-            String rutaImagen = panel.getRutaImagen();
+        int codigo = listaCanciones.size() + 1;
+        String dur = panel.duracionField.getText(); // Viene calculado automáticamente
+        
+        Nodo nuevo = new Nodo(codigo, panel.getNombre(), panel.getArtista(), 
+                              panel.getGenero(), panel.getRutaAudio(), 
+                              panel.getRutaImagen(), dur);
+        
+        listaCanciones.addSong(nuevo);
+        modeloLista.addElement(nuevo);
+        archivo.guardar(listaCanciones);
+    }
 
-            if (nombre.isEmpty() || artista.isEmpty() || genero.isEmpty() || rutaAudio == null || rutaImagen == null) {
-                JOptionPane.showMessageDialog(this, "Por favor, complete todos los campos.");
-                return;
+    private void actualizarInterfaz() {
+        Nodo n = jlist.getSelectedValue();
+        if (n != null) {
+            if (n.rutaImagen != null) {
+                ImageIcon icon = new ImageIcon(n.rutaImagen);
+                Image img = icon.getImage().getScaledInstance(350, 350, Image.SCALE_SMOOTH);
+                imagenLabel.setIcon(new ImageIcon(img));
+                imagenLabel.setText("");
             }
-
-            Nodo nuevoNodo = new Nodo(codigo, nombre, artista, genero, rutaAudio, rutaImagen);
-            listaCanciones.addSong(nuevoNodo);
-            modeloLista.addElement(nuevoNodo);
-            archivo.guardar(listaCanciones);
-
-            panel.limpiarCampos();
-        } catch (Exception e) {
-            e.printStackTrace();
+            duracionLabel.setText("Duración: " + n.duracion);
         }
     }
 
     private void eliminarCancion() {
-        Nodo nodoSeleccionado = jlist.getSelectedValue();
-        if (nodoSeleccionado != null) {
+        Nodo n = jlist.getSelectedValue();
+        if (n != null) {
             reproductor.stop();
-            listaCanciones.removeSong(nodoSeleccionado.codigo);
-            modeloLista.removeElement(nodoSeleccionado);
+            listaCanciones.removeSong(n.codigo);
+            modeloLista.removeElement(n);
             archivo.guardar(listaCanciones);
             imagenLabel.setIcon(null);
-            imagenLabel.setText("Seleccione una canción");
-        }
-    }
-
-    private void mostrarImagen() {
-        Nodo nodoSeleccionado = jlist.getSelectedValue();
-        if (nodoSeleccionado != null && nodoSeleccionado.rutaImagen != null) {
-            ImageIcon iconoOriginal = new ImageIcon(nodoSeleccionado.rutaImagen);
-            Image imagenEscalada = iconoOriginal.getImage().getScaledInstance(350, 350, Image.SCALE_SMOOTH);
-            imagenLabel.setIcon(new ImageIcon(imagenEscalada));
-            imagenLabel.setText("");
+            duracionLabel.setText("Duración: --:--");
         }
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new MainApp());
+        SwingUtilities.invokeLater(MainApp::new);
     }
 }
